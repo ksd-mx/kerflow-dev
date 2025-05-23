@@ -43,21 +43,21 @@ services:
   # Backend Service (NestJS API)
   api:
     build:
-      context: ./apps/api
+      context: ./api
       target: development
     container_name: platform-api
     command: >
       sh -c "apk update && apk add --no-cache curl && \
              echo 'Curl installed, starting server...' && \
-             cd apps/api && pnpm run start:dev"
+             cd api && pnpm run start:dev"
     ports:
       - "3001:3001"
       - "9229:9229"
     volumes:
-      - ./apps/api:/usr/src/app/apps/api
-      - /usr/src/app/apps/api/node_modules
+      - ./api:/usr/src/app/api
+      - /usr/src/app/api/node_modules
     env_file:
-      - ./apps/api/.env
+      - ./api/.env
     depends_on:
       emulators:
         condition: service_healthy
@@ -90,15 +90,15 @@ services:
   web:
     build:
       context: .
-      dockerfile: ./apps/web/Dockerfile
+      dockerfile: ./web/Dockerfile
       target: development
     container_name: platform-web
-    command: sh -c "cd apps/web && pnpm install --no-frozen-lockfile && pnpm dev --host"
+    command: sh -c "cd web && pnpm install --no-frozen-lockfile && pnpm dev --host"
     ports:
       - "5173:5173"  # Use Vite's default port 5173
     volumes:
-      - ./apps/web:/usr/src/app/apps/web
-      - /usr/src/app/apps/web/node_modules
+      - ./web:/usr/src/app/web
+      - /usr/src/app/web/node_modules
     depends_on:
       api:
         condition: service_healthy
