@@ -1,0 +1,136 @@
+services:
+  # Firebase Emulators (Run first)
+  emulators:
+    image: andreysenov/firebase-tools
+    container_name: firebase-emulator
+    working_dir: /usr/src/app
+    ports:
+      - "4000:4000"  # UI
+      - "5010:5000"  # Firebase Hosting
+      - "5001:5001"  # Functions
+      - "5002:5002"  # App Hosting
+      - "8080:8080"  # Firestore
+      - "8085:8085"  # Pub/Sub
+      - "9000:9000"  # Realtime Database
+      - "9099:9099"  # Auth
+      - "9299:9299"  # Eventarc
+      - "9199:9199"  # Storage
+    volumes:
+      - .:/usr/src/app # Mount project root
+      - firestore_data:/usr/src/app/firebase-data # Persist data
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "require('http').get('http://localhost:4000', res => process.exit(res.statusCode === 200 ? 0 : 1)).on('error', () => process.exit(1))"
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    command:
+      [
+        "firebase",
+        "emulators:start",
+        "--project=demo-project",
+        "--import=./firebase-data"
+      ]
+    networks:
+      - platform_net
+
+  # Backend Service (NestJS API)
+  api:
+    build:
+      context: ./apps/api
+      target: development
+    container_name: platform-api
+    command: >
+      sh -c "apk update && apk add --no-cache curl && \
+             echo 'Curl installed, starting server...' && \
+             cd apps/api && pnpm run start:dev"
+    ports:
+      - "3001:3001"
+      - "9229:9229"
+    volumes:
+      - ./apps/api:/usr/src/app/apps/api
+      - /usr/src/app/apps/api/node_modules
+    env_file:
+      - ./apps/api/.env
+    depends_on:
+      emulators:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "const http = require('http'); \
+          const check = (url) => new Promise((res) => \
+            http.get(url, r => res(r.statusCode === 200)).on('error', () => res(false))); \
+          (async () => { \
+            const results = await Promise.all([ \
+              check('http://localhost:3001/api/v1/health'), \
+              check('http://emulators:8080'), \
+              check('http://emulators:9099') \
+            ]); \
+            process.exit(results.every(Boolean) ? 0 : 1); \
+          })();"
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    networks:
+      - platform_net
+
+  # Frontend Service (React/Vite)
+  web:
+    build:
+      context: .
+      dockerfile: ./apps/web/Dockerfile
+      target: development
+    container_name: platform-web
+    command: sh -c "cd apps/web && pnpm install --no-frozen-lockfile && pnpm dev --host"
+    ports:
+      - "5173:5173"  # Use Vite's default port 5173
+    volumes:
+      - ./apps/web:/usr/src/app/apps/web
+      - /usr/src/app/apps/web/node_modules
+    depends_on:
+      api:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "const http = require('http'); \
+          const check = (url) => new Promise((res) => \
+            http.get(url, r => res(r.statusCode === 200)).on('error', () => res(false))); \
+          (async () => { \
+            const results = await Promise.all([ \
+              check('http://localhost:5173'), \
+              check('http://api:3001/api/v1/health') \
+            ]); \
+            process.exit(results.every(Boolean) ? 0 : 1); \
+          })();"
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    networks:
+      - platform_net
+
+# Define the network
+networks:
+  platform_net:
+    driver: bridge
+
+# Define named volume for Firestore data persistence
+volumes:
+  firestore_data:
