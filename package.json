@@ -10,6 +10,8 @@
     "build": "pnpm -r build",
     "build:web": "pnpm --filter web build",
     "build:api": "pnpm --filter api build",
+    "deploy:web": "pnpm --filter web deploy",
+    "deploy:web:preview": "pnpm --filter web deploy:preview",
     "lint": "pnpm -r lint",
     "clean": "pnpm -r exec rm -rf node_modules dist .turbo",
     "clean:locks": "find . -name 'pnpm-lock.yaml' -not -path '*/node_modules/*' -delete"
