@@ -1,6 +1,6 @@
 [submodule "api"]
 	path = api
-	url = https://github.com/yourorg/kerflow-api.git
+	url = https://github.com/ksd-mx/kerflow-api.git
 [submodule "web"]
 	path = web
-	url = https://github.com/yourorg/kerflow-web.git
+	url = https://github.com/ksd-mx/kerflow-web.git
